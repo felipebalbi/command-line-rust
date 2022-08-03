@@ -83,11 +83,39 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
+    let mut total = FileInfo {
+        num_lines: 0,
+        num_words: 0,
+        num_chars: 0,
+        num_bytes: 0,
+    };
+
+    let num_files = config.files.len();
+
     for filename in &config.files {
         match open(filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
-            Ok(_) => println!("Opened {}", filename),
+            Ok(file) => {
+                if let Ok(info) = count(file) {
+                    total.num_lines += info.num_lines;
+                    total.num_words += info.num_words;
+                    total.num_chars += info.num_chars;
+                    total.num_bytes += info.num_bytes;
+
+                    println!(
+                        "{:>8} {:>8} {:>8} {}",
+                        info.num_lines, info.num_words, info.num_chars, filename
+                    );
+                }
+            }
         }
+    }
+
+    if num_files > 1 {
+        println!(
+            "{:>8} {:>8} {:>8} total",
+            total.num_lines, total.num_words, total.num_chars
+        );
     }
 
     Ok(())
@@ -98,6 +126,23 @@ pub fn count(mut file: impl BufRead) -> MyResult<FileInfo> {
     let mut num_words = 0;
     let mut num_bytes = 0;
     let mut num_chars = 0;
+
+    let mut line = String::new();
+
+    loop {
+        let line_bytes = file.read_line(&mut line)?;
+
+        if line_bytes == 0 {
+            break;
+        }
+
+        num_bytes += line_bytes;
+        num_lines += 1;
+        num_words += line.split_whitespace().count();
+        num_chars += line.chars().count();
+
+        line.clear();
+    }
 
     Ok(FileInfo {
         num_lines,
