@@ -103,7 +103,7 @@ pub fn run(config: Config) -> MyResult<()> {
                     total.num_bytes += info.num_bytes;
 
                     println!(
-                        "{:>8} {:>8} {:>8} {}",
+                        "{:>8}{:>8}{:>8} {}",
                         info.num_lines, info.num_words, info.num_chars, filename
                     );
                 }
@@ -113,7 +113,7 @@ pub fn run(config: Config) -> MyResult<()> {
 
     if num_files > 1 {
         println!(
-            "{:>8} {:>8} {:>8} total",
+            "{:>8}{:>8}{:>8} total",
             total.num_lines, total.num_words, total.num_chars
         );
     }
