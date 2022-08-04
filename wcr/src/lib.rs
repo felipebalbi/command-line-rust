@@ -18,8 +18,8 @@ pub struct Config {
 pub struct FileInfo {
     num_lines: usize,
     num_words: usize,
-    num_bytes: usize,
     num_chars: usize,
+    num_bytes: usize,
 }
 
 pub fn get_args() -> MyResult<Config> {
@@ -77,8 +77,8 @@ pub fn get_args() -> MyResult<Config> {
         files,
         lines,
         words,
-        bytes,
         chars,
+        bytes,
     })
 }
 
@@ -103,8 +103,16 @@ pub fn run(config: Config) -> MyResult<()> {
                     total.num_bytes += info.num_bytes;
 
                     println!(
-                        "{:>8}{:>8}{:>8} {}",
-                        info.num_lines, info.num_words, info.num_chars, filename
+                        "{}{}{}{}{}",
+                        format_field(info.num_lines, config.lines),
+                        format_field(info.num_words, config.words),
+                        format_field(info.num_bytes, config.bytes),
+                        format_field(info.num_chars, config.chars),
+                        if filename == "-" {
+                            "".to_string()
+                        } else {
+                            format!(" {}", filename)
+                        }
                     );
                 }
             }
@@ -113,8 +121,11 @@ pub fn run(config: Config) -> MyResult<()> {
 
     if num_files > 1 {
         println!(
-            "{:>8}{:>8}{:>8} total",
-            total.num_lines, total.num_words, total.num_chars
+            "{}{}{}{} total",
+            format_field(total.num_lines, config.lines),
+            format_field(total.num_words, config.words),
+            format_field(total.num_bytes, config.bytes),
+            format_field(total.num_chars, config.chars),
         );
     }
 
@@ -154,7 +165,7 @@ pub fn count(mut file: impl BufRead) -> MyResult<FileInfo> {
 
 #[cfg(test)]
 mod tests {
-    use super::{count, FileInfo};
+    use super::{count, format_field, FileInfo};
     use std::io::Cursor;
 
     #[test]
@@ -173,11 +184,26 @@ mod tests {
 
         assert_eq!(info.unwrap(), expected);
     }
+
+    #[test]
+    fn test_format_field() {
+        assert_eq!(format_field(1, false), "");
+        assert_eq!(format_field(3, true), "       3");
+        assert_eq!(format_field(10, true), "      10");
+    }
 }
 
 fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
     match filename {
         "-" => Ok(Box::new(BufReader::new(io::stdin()))),
         _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
+}
+
+fn format_field(field: usize, show: bool) -> String {
+    if show {
+        format!("{:>8}", field)
+    } else {
+        format!("{}", "".to_string())
     }
 }
