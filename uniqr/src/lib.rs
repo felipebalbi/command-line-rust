@@ -81,7 +81,7 @@ pub fn run(config: Config) -> MyResult<()> {
 
 fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
     match filename {
-        "_" => Ok(Box::new(BufReader::new(io::stdin()))),
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
         _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
     }
 }
