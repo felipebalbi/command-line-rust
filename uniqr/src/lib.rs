@@ -1,7 +1,7 @@
 use clap::{App, Arg};
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -52,6 +52,10 @@ pub fn get_args() -> MyResult<Config> {
 pub fn run(config: Config) -> MyResult<()> {
     let mut file = open(&config.in_file).map_err(|e| format!("{}: {}", config.in_file, e))?;
     let mut line = String::new();
+    let mut out = create(config.out_file.as_deref())
+        .map_err(|e| format!("{}: {}", config.out_file.unwrap(), e))?;
+
+    let mut count = 0;
 
     loop {
         let bytes = file.read_line(&mut line)?;
@@ -59,7 +63,9 @@ pub fn run(config: Config) -> MyResult<()> {
             break;
         }
 
-        print!("{}", line);
+        count += 1;
+
+        write!(out, "{}{}", format_count(count, config.count), line)?;
         line.clear()
     }
 
@@ -70,5 +76,20 @@ fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
     match filename {
         "_" => Ok(Box::new(BufReader::new(io::stdin()))),
         _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
+}
+
+fn create(filename: Option<&str>) -> MyResult<Box<dyn Write>> {
+    match filename {
+        None => Ok(Box::new(BufWriter::new(io::stdout()))),
+        Some(f) => Ok(Box::new(BufWriter::new(File::create(f)?))),
+    }
+}
+
+fn format_count(count: usize, show: bool) -> String {
+    if show {
+        format!("{} ", count)
+    } else {
+        format!("{}", "")
     }
 }
