@@ -88,8 +88,8 @@ fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
 
 fn create(filename: Option<&str>) -> MyResult<Box<dyn Write>> {
     match filename {
-        None => Ok(Box::new(io::stdout())),
         Some(f) => Ok(Box::new(File::create(f)?)),
+        _ => Ok(Box::new(io::stdout())),
     }
 }
 
