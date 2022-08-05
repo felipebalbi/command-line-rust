@@ -61,7 +61,7 @@ pub fn get_args() -> MyResult<Config> {
         .map(|vals| {
             vals.iter()
                 .map(|name| Regex::new(&name).map_err(|_| format!("Invalid --name \"{}\"", name)))
-                .collect::<Result<Vec<_>, _>>()
+                .collect()
         })
         .transpose()?
         .unwrap_or_default();
