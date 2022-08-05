@@ -2,7 +2,7 @@ use crate::EntryType::*;
 use clap::{App, Arg};
 use regex::Regex;
 use std::error::Error;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -92,10 +92,35 @@ pub fn run(config: Config) -> MyResult<()> {
         for entry in WalkDir::new(path) {
             match entry {
                 Err(e) => eprintln!("{}", e),
-                Ok(entry) => println!("{}", entry.path().display()),
+                Ok(entry) => {
+                    if config.entry_types.is_empty()
+                        || config
+                            .entry_types
+                            .iter()
+                            .any(|entry_type| match entry_type {
+                                File => is_file(&entry),
+                                Link => is_symlink(&entry),
+                                Dir => is_directory(&entry),
+                            })
+                    {
+                        println!("{}", entry.path().display());
+                    }
+                }
             }
         }
     }
 
     Ok(())
+}
+
+fn is_directory(entry: &DirEntry) -> bool {
+    entry.file_type().is_dir()
+}
+
+fn is_symlink(entry: &DirEntry) -> bool {
+    entry.file_type().is_symlink()
+}
+
+fn is_file(entry: &DirEntry) -> bool {
+    entry.file_type().is_file()
 }
