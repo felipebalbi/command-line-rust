@@ -93,7 +93,7 @@ pub fn run(config: Config) -> MyResult<()> {
             match entry {
                 Err(e) => eprintln!("{}", e),
                 Ok(entry) => {
-                    if config.entry_types.is_empty()
+                    if (config.entry_types.is_empty()
                         || config
                             .entry_types
                             .iter()
@@ -101,7 +101,12 @@ pub fn run(config: Config) -> MyResult<()> {
                                 File => is_file(&entry),
                                 Link => is_symlink(&entry),
                                 Dir => is_directory(&entry),
-                            })
+                            }))
+                        && (config.names.is_empty()
+                            || config
+                                .names
+                                .iter()
+                                .any(|re| re.is_match(&entry.file_name().to_string_lossy())))
                     {
                         println!("{}", entry.path().display());
                     }
