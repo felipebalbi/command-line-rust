@@ -2,6 +2,8 @@ use crate::Extract::*;
 use clap::{App, Arg};
 use regex::Regex;
 use std::error::Error;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
@@ -108,9 +110,57 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
-    println!("{:#?}", &config);
+    for filename in &config.files {
+        match open(filename) {
+            Err(err) => eprintln!("{}: {}", filename, err),
+            Ok(file) => {
+                for line in file.lines() {
+                    let line = &line?;
+
+                    match &config.extract {
+                        Bytes(byte_pos) => println!("{}", extract_bytes(line, byte_pos)),
+                        Chars(char_pos) => println!("{}", extract_chars(line, char_pos)),
+                        Fields(field_pos) => println!("{}", extract_fields(line, field_pos)),
+                    }
+                }
+            }
+        }
+    }
 
     Ok(())
+}
+
+fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
+    match filename {
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+        _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
+}
+
+fn extract_bytes(line: &str, byte_pos: &[Range<usize>]) -> String {
+    let bytes = line.as_bytes();
+
+    let selection: Vec<_> = byte_pos
+        .iter()
+        .cloned()
+        .flat_map(|range| range.filter_map(|i| bytes.get(i)).copied())
+        .collect();
+
+    String::from_utf8_lossy(&selection).into_owned()
+}
+
+fn extract_chars(line: &str, char_pos: &[Range<usize>]) -> String {
+    let chars: Vec<char> = line.chars().collect();
+
+    char_pos
+        .iter()
+        .cloned()
+        .flat_map(|range| range.filter_map(|i| chars.get(i)))
+        .collect()
+}
+
+fn extract_fields(line: &str, field_pos: &[Range<usize>]) -> String {
+    unimplemented!()
 }
 
 fn parse_pos(range: &str) -> MyResult<PositionList> {
@@ -156,7 +206,7 @@ fn parse_index(index: &str) -> Result<usize, String> {
 
 #[cfg(test)]
 mod unit_tests {
-    use super::parse_pos;
+    use super::{extract_chars, parse_pos};
 
     #[test]
     fn test_parse_pos() {
@@ -264,5 +314,15 @@ mod unit_tests {
         let res = parse_pos("15,19-20");
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![14..15, 18..20]);
+    }
+
+    #[test]
+    fn test_extract_chars() {
+        assert_eq!(extract_chars("", &[0..1]), "".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1]), "á".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1, 2..3]), "ác".to_string());
+        assert_eq!(extract_chars("ábc", &[0..3]), "ábc".to_string());
+        assert_eq!(extract_chars("ábc", &[2..3, 1..2]), "cb".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1, 1..2, 4..5]), "áb".to_string());
     }
 }
