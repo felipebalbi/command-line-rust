@@ -117,16 +117,12 @@ pub fn run(config: Config) -> MyResult<()> {
             Ok(file) => match &config.extract {
                 Bytes(byte_pos) => {
                     for line in file.lines() {
-                        let line = &line?;
-
-                        println!("{}", extract_bytes(line, byte_pos))
+                        println!("{}", extract_bytes(&line?, byte_pos))
                     }
                 }
                 Chars(char_pos) => {
                     for line in file.lines() {
-                        let line = &line?;
-
-                        println!("{}", extract_chars(line, char_pos))
+                        println!("{}", extract_chars(&line?, char_pos))
                     }
                 }
                 Fields(field_pos) => {
@@ -140,9 +136,7 @@ pub fn run(config: Config) -> MyResult<()> {
                         .from_writer(io::stdout());
 
                     for record in reader.records() {
-                        let record = record?;
-
-                        writer.write_record(extract_fields(&record, field_pos))?;
+                        writer.write_record(extract_fields(&record?, field_pos))?;
                     }
                 }
             },
@@ -172,7 +166,7 @@ fn extract_bytes(line: &str, byte_pos: &[Range<usize>]) -> String {
 }
 
 fn extract_chars(line: &str, char_pos: &[Range<usize>]) -> String {
-    let chars: Vec<char> = line.chars().collect();
+    let chars: Vec<_> = line.chars().collect();
 
     char_pos
         .iter()
