@@ -1,3 +1,4 @@
+use crate::Column::*;
 use clap::{App, Arg};
 use std::cmp::Ordering::*;
 use std::error::Error;
@@ -86,6 +87,12 @@ pub fn get_args() -> MyResult<Config> {
     })
 }
 
+enum Column<'a> {
+    Column1(&'a str),
+    Column2(&'a str),
+    Column3(&'a str),
+}
+
 pub fn run(config: Config) -> MyResult<()> {
     let file1 = &config.file1;
     let file2 = &config.file2;
@@ -102,25 +109,37 @@ pub fn run(config: Config) -> MyResult<()> {
         }
     };
 
-    let printer = |col1: &str, col2: &str, col3: &str| {
+    let printer = |col: Column| {
         let mut output = vec![];
 
-        if config.show_col1 {
-            output.push(col1);
-        } else {
-            output.push("");
-        }
+        match col {
+            Column1(l) => {
+                if config.show_col1 {
+                    output.push(l);
+                }
+            }
+            Column2(l) => {
+                if config.show_col2 {
+                    if config.show_col1 {
+                        output.push("");
+                    }
 
-        if config.show_col2 {
-            output.push(col2);
-        } else {
-            output.push("");
-        }
+                    output.push(l);
+                }
+            }
+            Column3(l) => {
+                if config.show_col3 {
+                    if config.show_col1 {
+                        output.push("");
+                    }
 
-        if config.show_col3 {
-            output.push(col3);
-        } else {
-            output.push("");
+                    if config.show_col3 {
+                        output.push("");
+                    }
+
+                    output.push(l);
+                }
+            }
         }
 
         if !output.is_empty() {
@@ -138,25 +157,25 @@ pub fn run(config: Config) -> MyResult<()> {
         match (&line1, &line2) {
             (Some(l1), Some(l2)) => match l1.cmp(l2) {
                 Equal => {
-                    printer("", "", l1);
+                    printer(Column3(l1));
                     line1 = lines1.next();
                     line2 = lines2.next();
                 }
                 Less => {
-                    printer(l1, "", "");
+                    printer(Column1(l1));
                     line1 = lines1.next();
                 }
                 Greater => {
-                    printer("", l2, "");
+                    printer(Column2(l2));
                     line2 = lines2.next();
                 }
             },
             (Some(l1), None) => {
-                printer(l1, "", "");
+                printer(Column1(l1));
                 line1 = lines1.next();
             }
             (None, Some(l2)) => {
-                printer("", l2, "");
+                printer(Column2(l2));
                 line2 = lines2.next();
             }
             _ => (),
