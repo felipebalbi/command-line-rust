@@ -1,4 +1,5 @@
 use clap::{App, Arg};
+use std::cmp::Ordering::*;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -93,10 +94,74 @@ pub fn run(config: Config) -> MyResult<()> {
         return Err(From::from("Both input files cannot be STDIN (\"-\")"));
     }
 
-    let _file1 = open(file1)?;
-    let _file2 = open(file2)?;
+    let case = |line: String| {
+        if config.insensitive {
+            line.to_lowercase()
+        } else {
+            line
+        }
+    };
 
-    println!("Opened {} and {}", file1, file2);
+    let printer = |col1: &str, col2: &str, col3: &str| {
+        let mut output = vec![];
+
+        if config.show_col1 {
+            output.push(col1);
+        } else {
+            output.push("");
+        }
+
+        if config.show_col2 {
+            output.push(col2);
+        } else {
+            output.push("");
+        }
+
+        if config.show_col3 {
+            output.push(col3);
+        } else {
+            output.push("");
+        }
+
+        if !output.is_empty() {
+            println!("{}", output.join(&config.delimiter));
+        }
+    };
+
+    let mut lines1 = open(file1)?.lines().filter_map(Result::ok).map(case);
+    let mut lines2 = open(file2)?.lines().filter_map(Result::ok).map(case);
+
+    let mut line1 = lines1.next();
+    let mut line2 = lines2.next();
+
+    while line1.is_some() || line2.is_some() {
+        match (&line1, &line2) {
+            (Some(l1), Some(l2)) => match l1.cmp(l2) {
+                Equal => {
+                    printer("", "", l1);
+                    line1 = lines1.next();
+                    line2 = lines2.next();
+                }
+                Less => {
+                    printer(l1, "", "");
+                    line1 = lines1.next();
+                }
+                Greater => {
+                    printer("", l2, "");
+                    line2 = lines2.next();
+                }
+            },
+            (Some(l1), None) => {
+                printer(l1, "", "");
+                line1 = lines1.next();
+            }
+            (None, Some(l2)) => {
+                printer("", l2, "");
+                line2 = lines2.next();
+            }
+            _ => (),
+        }
+    }
 
     Ok(())
 }
