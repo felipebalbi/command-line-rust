@@ -133,7 +133,7 @@ pub fn run(config: Config) -> MyResult<()> {
                         output.push("");
                     }
 
-                    if config.show_col3 {
+                    if config.show_col2 {
                         output.push("");
                     }
 
