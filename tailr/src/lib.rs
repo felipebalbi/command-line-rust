@@ -145,10 +145,22 @@ fn count_lines_bytes(filename: &str) -> MyResult<(i64, i64)> {
 
 fn print_lines(mut file: impl BufRead, num_lines: &TakeValue, total_lines: i64) -> MyResult<()> {
     if let Some(start) = get_start_index(num_lines, total_lines) {
-        for line in file.lines().skip(start as usize) {
-            let line = line?;
+        let mut line_num = 0;
+        let mut buf = Vec::new();
 
-            println!("{}", line);
+        loop {
+            let bytes_read = file.read_until(b'\n', &mut buf)?;
+
+            if bytes_read == 0 {
+                break;
+            }
+
+            if line_num >= start {
+                print!("{}", String::from_utf8_lossy(&buf));
+            }
+
+            line_num += 1;
+            buf.clear();
         }
     }
 
