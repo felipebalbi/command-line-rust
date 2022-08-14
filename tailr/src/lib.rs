@@ -91,7 +91,7 @@ pub fn run(config: Config) -> MyResult<()> {
             Err(e) => eprintln!("{}: {}", filename, e),
             Ok(file) => {
                 if !config.quiet && num_files > 1 {
-                    println!("{}==> {} <==", if num > 1 { "\n" } else { "" }, filename);
+                    println!("{}==> {} <==", if num > 0 { "\n" } else { "" }, filename);
                 }
 
                 let file = BufReader::new(file);
