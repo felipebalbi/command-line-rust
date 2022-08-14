@@ -3,6 +3,7 @@ use clap::{App, Arg};
 use once_cell::sync::OnceCell;
 use regex::Regex;
 use std::error::Error;
+use std::fs::File;
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -82,7 +83,12 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
-    println!("{:#?}", config);
+    for filename in config.files {
+        match File::open(&filename) {
+            Err(e) => eprintln!("{}: {}", filename, e),
+            Ok(_) => println!("Opened {}", filename),
+        }
+    }
 
     Ok(())
 }
