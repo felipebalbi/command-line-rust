@@ -84,20 +84,26 @@ pub fn run(config: Config) -> MyResult<()> {
     let files = find_files(&config.sources)?;
     let fortunes = read_fortunes(&files)?;
 
-    if fortunes.is_empty() {
-        println!("No fortunes found");
-    } else {
-        if let Some(pattern) = config.pattern {
-            for fortune in fortunes {
-                if pattern.is_match(&fortune.text) {
-                    println!("{:#?}", fortune.text);
-                }
+    if let Some(pattern) = config.pattern {
+        let mut prev_source = None;
+
+        for fortune in fortunes
+            .iter()
+            .filter(|fortune| pattern.is_match(&fortune.text))
+        {
+            if prev_source.as_ref().map_or(true, |s| s != &fortune.source) {
+                eprintln!("({})\n%", fortune.source);
+                prev_source = Some(fortune.source.clone());
             }
-        } else {
-            if let Some(fortune) = pick_fortune(&fortunes, config.seed) {
-                println!("{:#?}", fortune);
-            }
+
+            println!("{}\n%", fortune.text);
         }
+    } else {
+        let fortune = pick_fortune(&fortunes, config.seed)
+            .or_else(|| Some("No fortunes found".to_string()))
+            .unwrap();
+
+        println!("{}", fortune);
     }
 
     Ok(())
@@ -138,7 +144,7 @@ fn read_fortunes(paths: &[PathBuf]) -> MyResult<Vec<Fortune>> {
     let mut fortunes = vec![];
 
     for path in paths {
-        let basename = path.display().to_string();
+        let basename = path.file_name().unwrap().to_string_lossy().into_owned();
         let file = File::open(path).map_err(|e| format!("{}: {}", &basename, e))?;
 
         for line in BufReader::new(file).lines().filter_map(Result::ok) {
