@@ -1,8 +1,10 @@
 use clap::{App, Arg};
+use rand::prelude::*;
 use regex::{Regex, RegexBuilder};
 use std::error::Error;
 use std::ffi::OsStr;
-use std::fs;
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use walkdir::{DirEntry, WalkDir};
 
@@ -13,6 +15,12 @@ pub struct Config {
     sources: Vec<String>,
     pattern: Option<Regex>,
     seed: Option<u64>,
+}
+
+#[derive(Debug)]
+struct Fortune {
+    source: String,
+    text: String,
 }
 
 pub fn get_args() -> MyResult<Config> {
@@ -74,7 +82,23 @@ pub fn get_args() -> MyResult<Config> {
 
 pub fn run(config: Config) -> MyResult<()> {
     let files = find_files(&config.sources)?;
-    println!("{:#?}", files);
+    let fortunes = read_fortunes(&files)?;
+
+    if fortunes.is_empty() {
+        println!("No fortunes found");
+    } else {
+        if let Some(pattern) = config.pattern {
+            for fortune in fortunes {
+                if pattern.is_match(&fortune.text) {
+                    println!("{:#?}", fortune.text);
+                }
+            }
+        } else {
+            if let Some(fortune) = pick_fortune(&fortunes, config.seed) {
+                println!("{:#?}", fortune);
+            }
+        }
+    }
 
     Ok(())
 }
@@ -109,9 +133,49 @@ fn find_files(paths: &[String]) -> MyResult<Vec<PathBuf>> {
     Ok(files)
 }
 
+fn read_fortunes(paths: &[PathBuf]) -> MyResult<Vec<Fortune>> {
+    let mut buf = vec![];
+    let mut fortunes = vec![];
+
+    for path in paths {
+        let basename = path.display().to_string();
+        let file = File::open(path).map_err(|e| format!("{}: {}", &basename, e))?;
+
+        for line in BufReader::new(file).lines().filter_map(Result::ok) {
+            if line == "%" {
+                if !buf.is_empty() {
+                    let source = basename.clone();
+                    let text = buf.join("\n");
+
+                    fortunes.push(Fortune { source, text });
+                    buf.clear();
+                }
+            } else {
+                buf.push(line.to_string());
+            }
+        }
+    }
+
+    Ok(fortunes)
+}
+
+fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
+    if let Some(s) = seed {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(s);
+        fortunes
+            .choose(&mut rng)
+            .map(|fortune| fortune.text.to_string())
+    } else {
+        let mut rng = rand::thread_rng();
+        fortunes
+            .choose(&mut rng)
+            .map(|fortune| fortune.text.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{find_files, parse_u64};
+    use super::{find_files, parse_u64, pick_fortune, read_fortunes, Fortune};
     use std::path::PathBuf;
 
     #[test]
@@ -175,5 +239,62 @@ mod tests {
         if let Some(filename) = files.last().unwrap().file_name() {
             assert_eq!(filename.to_string_lossy(), "jokes".to_string())
         }
+    }
+
+    #[test]
+    fn test_read_fortunes() {
+        // Parses all the fortunes without a filter
+        let res = read_fortunes(&[PathBuf::from("./tests/inputs/jokes")]);
+        assert!(res.is_ok());
+
+        if let Ok(fortunes) = res {
+            // Correct number and sorting
+            assert_eq!(fortunes.len(), 6);
+            assert_eq!(
+                fortunes.first().unwrap().text,
+                "Q. What do you call a head of lettuce in a shirt and tie?\n\
+                A. Collared greens."
+            );
+            assert_eq!(
+                fortunes.last().unwrap().text,
+                "Q: What do you call a deer wearing an eye patch?\n\
+                A: A bad idea (bad-eye deer)."
+            );
+        }
+
+        // Filters for matching text
+        let res = read_fortunes(&[
+            PathBuf::from("./tests/inputs/jokes"),
+            PathBuf::from("./tests/inputs/quotes"),
+        ]);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().len(), 11);
+    }
+
+    #[test]
+    fn test_pick_fortune() {
+        // Create a slice of fortunes
+        let fortunes = &[
+            Fortune {
+                source: "fortunes".to_string(),
+                text: "You cannot achieve the impossible without \
+                      attempting the absurd."
+                    .to_string(),
+            },
+            Fortune {
+                source: "fortunes".to_string(),
+                text: "Assumption is the mother of all screw-ups.".to_string(),
+            },
+            Fortune {
+                source: "fortunes".to_string(),
+                text: "Neckties strangle clear thinking.".to_string(),
+            },
+        ];
+
+        // Pick a fortune with a seed
+        assert_eq!(
+            pick_fortune(fortunes, Some(1)).unwrap(),
+            "Neckties strangle clear thinking.".to_string()
+        );
     }
 }
